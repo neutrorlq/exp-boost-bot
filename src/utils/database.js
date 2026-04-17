@@ -42,6 +42,7 @@ let _ghSha   = null;
 let _saveTimeout = null;
 
 async function initDB() {
+  console.log('[DB] GH_TOKEN presente:', !!GH_TOKEN);
   try {
     if (GH_TOKEN) {
       const res = await ghRequest('GET', `/repos/${GH_REPO}/contents/${GH_FILE}?ref=${GH_BRANCH}`);
