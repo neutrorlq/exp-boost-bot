@@ -101,16 +101,23 @@ function saveDB(data) {
   if (_saveTimeout) clearTimeout(_saveTimeout);
   _saveTimeout = setTimeout(async () => {
     try {
-      if (!_ghSha) {
-        const r = await ghRequest('GET', `/repos/${GH_REPO}/contents/${GH_FILE}?ref=${GH_BRANCH}`);
-        _ghSha = r.sha;
+      // Sempre busca o SHA atual para evitar conflitos
+      const current = await ghRequest('GET', `/repos/${GH_REPO}/contents/${GH_FILE}?ref=${GH_BRANCH}`);
+      if (!current.sha) {
+        console.error('[DB] Não conseguiu obter SHA:', current.message);
+        return;
       }
+      _ghSha = current.sha;
       const content = Buffer.from(JSON.stringify(data, null, 2)).toString('base64');
       const r = await ghRequest('PUT', `/repos/${GH_REPO}/contents/${GH_FILE}`, {
         message: 'db: auto-sync', content, sha: _ghSha, branch: GH_BRANCH,
       });
-      if (r.content?.sha) _ghSha = r.content.sha;
-      console.log('[DB] Sincronizado com GitHub');
+      if (r.content?.sha) {
+        _ghSha = r.content.sha;
+        console.log('[DB] Sincronizado com GitHub ✅');
+      } else {
+        console.error('[DB] Erro ao sincronizar:', r.message || JSON.stringify(r));
+      }
     } catch(e) {
       console.error('[DB] GitHub save error:', e.message);
       _ghSha = null;
