@@ -120,26 +120,10 @@ module.exports = {
           return interaction.reply({ content: '❌ Apenas administradores podem confirmar pagamentos.', ephemeral: true });
         }
 
-        // Atualizar status no database
         try {
-          const { loadDB, saveDB } = require('../utils/database');
-          const db = loadDB();
-          const canalNome = interaction.channel.name;
-          // Marcar o PIX mais recente deste canal como PAGO
-          const cobranca = [...(db.charges||[])].reverse().find(c => c.canal === canalNome && c.status === 'PENDENTE');
-          if (cobranca) {
-            cobranca.status = 'PAGO';
-            cobranca.confirmadoPor = interaction.user.tag;
-            cobranca.confirmadoEm = new Date().toISOString();
-            // Atualizar weekly revenue com o valor pago
-            if (db.weeklyStats) {
-              db.weeklyStats.revenue = (db.weeklyStats.revenue || 0) + (parseFloat(cobranca.valor) || 0);
-            }
-            require('../utils/database').saveDB ? require('../utils/database').saveDB(db) : null;
-            const fs = require('fs'), path = require('path');
-            fs.writeFileSync(path.join(process.cwd(), 'database.json'), JSON.stringify(db, null, 2));
-          }
-        } catch(e) { logger.error(`Erro ao atualizar status PIX: ${e.message}`); }
+          const { confirmarPagamento } = require('../utils/database');
+          confirmarPagamento(interaction.channel.name, interaction.user.tag);
+        } catch(e) { logger.error(`Erro ao confirmar pagamento: ${e.message}`); }
 
         const rowDesabilitada = new ActionRowBuilder().addComponents(
           new ButtonBuilder()
@@ -149,7 +133,6 @@ module.exports = {
             .setDisabled(true)
         );
         await interaction.update({ components: [rowDesabilitada] });
-
         await interaction.channel.send({
           embeds: [
             new EmbedBuilder()
