@@ -400,9 +400,18 @@ module.exports = {
 
       // ── Say Mensagem ───────────────────────────────────────────────────────
       if (interaction.customId === 'modal_say_mensagem') {
-        const texto = interaction.fields.getTextInputValue('texto');
+        const texto  = interaction.fields.getTextInputValue('texto');
+        const titulo = interaction.fields.getTextInputValue('titulo');
+        const cor    = interaction.fields.getTextInputValue('cor');
         try {
-          await interaction.channel.send(texto);
+          if (titulo) {
+            const embed = new EmbedBuilder()
+              .setColor(cor ? parseInt(cor.replace('#',''), 16) : 0x2b2d31)
+              .setTitle(titulo).setDescription(texto).setTimestamp();
+            await interaction.channel.send({ embeds: [embed] });
+          } else {
+            await interaction.channel.send(texto);
+          }
           await interaction.reply({ content: '✅ Mensagem enviada!', ephemeral: true });
         } catch (e) {
           await interaction.reply({ content: `❌ Erro: ${e.message}`, ephemeral: true });
@@ -412,40 +421,126 @@ module.exports = {
       // ── Say Webhook ────────────────────────────────────────────────────────
       if (interaction.customId.startsWith('modal_say_webhook_')) {
         const canalId = interaction.customId.replace('modal_say_webhook_', '');
-        const texto   = interaction.fields.getTextInputValue('texto');
-        const nome    = interaction.fields.getTextInputValue('nome') || interaction.client.user.username;
-        const avatar  = interaction.fields.getTextInputValue('avatar');
+        const texto  = interaction.fields.getTextInputValue('texto');
+        const titulo = interaction.fields.getTextInputValue('titulo');
+        const cor    = interaction.fields.getTextInputValue('cor');
+        const nome   = interaction.fields.getTextInputValue('nome') || interaction.client.user.username;
+        const avatar = interaction.fields.getTextInputValue('avatar');
 
-        // Validar avatar
-        if (avatar && !avatar.startsWith('http://') && !avatar.startsWith('https://')) {
-          return interaction.reply({ content: '❌ URL do avatar inválida! Precisa começar com `https://`', ephemeral: true });
+        if (avatar && !avatar.startsWith('http')) {
+          return interaction.reply({ content: '❌ URL do avatar inválida!', ephemeral: true });
         }
 
         await interaction.deferReply({ ephemeral: true });
-
         try {
           const { WebhookClient } = require('discord.js');
           const canal = await interaction.client.channels.fetch(canalId);
           const webhooks = await canal.fetchWebhooks();
           let webhook = webhooks.find(w => w.owner?.id === interaction.client.user.id);
-          if (!webhook) {
-            webhook = await canal.createWebhook({
-              name: 'Bot Webhook',
-              avatar: interaction.client.user.displayAvatarURL(),
-            });
-          }
+          if (!webhook) webhook = await canal.createWebhook({ name: 'Bot Webhook', avatar: interaction.client.user.displayAvatarURL() });
 
           const wClient = new WebhookClient({ id: webhook.id, token: webhook.token });
-          await wClient.send({
-            content: texto,
-            username: nome,
-            avatarURL: avatar || interaction.client.user.displayAvatarURL(),
-            allowedMentions: { parse: ['users', 'roles'] },
-          });
+          const payload = { username: nome, avatarURL: avatar || interaction.client.user.displayAvatarURL(), allowedMentions: { parse: ['users','roles'] } };
 
+          if (titulo) {
+            const embed = new EmbedBuilder()
+              .setColor(cor ? parseInt(cor.replace('#',''), 16) : 0x2b2d31)
+              .setTitle(titulo).setDescription(texto).setTimestamp();
+            payload.embeds = [embed];
+          } else {
+            payload.content = texto;
+          }
+
+          await wClient.send(payload);
           await interaction.editReply({ content: `✅ Mensagem enviada via webhook em <#${canalId}>!` });
         } catch (e) {
           logger.error(`Erro say webhook: ${e.message}`);
+          await interaction.editReply({ content: `❌ Erro: ${e.message}` });
+        }
+      }
+
+      // ── Painel ─────────────────────────────────────────────────────────────
+      if (interaction.customId === 'modal_painel') {
+        const descricao = interaction.fields.getTextInputValue('descricao');
+        const imagem    = interaction.fields.getTextInputValue('imagem');
+        const { StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
+
+        const embed = new EmbedBuilder()
+          .setColor(0x1a1a2e)
+          .setTitle(`Seja muito bem-vindo(a) ao suporte da ${interaction.guild.name}`)
+          .setDescription(
+            descricao ||
+            '> Estamos aqui para garantir que você tenha a melhor experiência possível.\n\n' +
+            '> **Como funciona?** Selecione o motivo do contato abaixo para abrir um ticket privado com nossa equipe.\n\n' +
+            '> Por favor, seja paciente após abrir o ticket. Nossa equipe responderá o mais breve possível.\n\n' +
+            '> Descreva o mais detalhado possível o seu problema!'
+          );
+        if (imagem) embed.setImage(imagem);
+
+        const menu = new StringSelectMenuBuilder()
+          .setCustomId('selecionar_ticket')
+          .setPlaceholder('Selecione o motivo do contato...')
+          .addOptions(
+            new StringSelectMenuOptionBuilder().setLabel('Suporte Técnico').setDescription('Problemas com o produto').setEmoji('🔧').setValue('suporte_tecnico'),
+            new StringSelectMenuOptionBuilder().setLabel('Dúvidas Gerais').setDescription('Perguntas sobre o serviço').setEmoji('❓').setValue('duvidas_gerais'),
+            new StringSelectMenuOptionBuilder().setLabel('Financeiro / Pagamento').setDescription('Problemas com pagamento').setEmoji('💳').setValue('financeiro'),
+            new StringSelectMenuOptionBuilder().setLabel('Outros').setDescription('Outros assuntos').setEmoji('📩').setValue('outros'),
+          );
+
+        await interaction.channel.send({ embeds: [embed], components: [new ActionRowBuilder().addComponents(menu)] });
+        await interaction.reply({ content: '✅ Painel enviado!', ephemeral: true });
+      }
+
+      // ── Anúncio ────────────────────────────────────────────────────────────
+      if (interaction.customId.startsWith('modal_anuncio_')) {
+        const canalId  = interaction.customId.replace('modal_anuncio_', '');
+        const mensagem = interaction.fields.getTextInputValue('mensagem');
+        const titulo   = interaction.fields.getTextInputValue('titulo');
+        const cor      = interaction.fields.getTextInputValue('cor');
+        const tempoStr = interaction.fields.getTextInputValue('tempo').toLowerCase().trim();
+
+        const match = tempoStr.match(/(\d+)\s*(segundo|minuto|hora)/);
+        if (!match) {
+          return interaction.reply({ content: '❌ Tempo inválido! Use: `30 minutos`, `2 horas` ou `60 segundos`', ephemeral: true });
+        }
+
+        const num = parseInt(match[1]);
+        let tempoMs = 0;
+        if (match[2].startsWith('segundo')) tempoMs = num * 1000;
+        else if (match[2].startsWith('minuto')) tempoMs = num * 60000;
+        else if (match[2].startsWith('hora'))   tempoMs = num * 3600000;
+
+        const deletarEm = Date.now() + tempoMs;
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+          const canal = await client.channels.fetch(canalId);
+          let msg;
+
+          if (titulo) {
+            const embed = new EmbedBuilder()
+              .setColor(cor ? parseInt(cor.replace('#',''), 16) : 0x2b2d31)
+              .setTitle(titulo).setDescription(mensagem)
+              .setFooter({ text: `⏳ Será apagado em ${tempoStr}` }).setTimestamp();
+            msg = await canal.send({ embeds: [embed] });
+          } else {
+            msg = await canal.send(`${mensagem}\n\n*⏳ Esta mensagem será apagada em ${tempoStr}*`);
+          }
+
+          const { salvarAgendamento } = require('../utils/database');
+          salvarAgendamento({ messageId: msg.id, channelId: canal.id, deletarEm });
+
+          const delay = deletarEm - Date.now();
+          setTimeout(async () => {
+            try { await msg.delete(); } catch {}
+            const { removerAgendamento } = require('../utils/database');
+            removerAgendamento(msg.id);
+          }, delay > 0 ? delay : 0);
+
+          logger.info(`Anúncio agendado: ${tempoStr} em #${canal.name}`);
+          await interaction.editReply({ content: `✅ Anúncio enviado em <#${canalId}>! Será apagado em **${tempoStr}**.` });
+        } catch (e) {
+          logger.error(`Erro anuncio modal: ${e.message}`);
           await interaction.editReply({ content: `❌ Erro: ${e.message}` });
         }
       }
