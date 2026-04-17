@@ -1,1 +1,17 @@
-{"configs":{},"ticketCounter":{},"charges":[],"scheduledDeletes":[],"weeklyStats":{"weekStart":"2026-04-17T00:00:00.000Z","tickets":0,"payments":0,"revenue":0,"history":[]}}
+{
+  "configs": {
+    "1493705228682530891": {
+      "TICKET_CATEGORY_ID": "1493724075661721716"
+    }
+  },
+  "ticketCounter": {},
+  "charges": [],
+  "scheduledDeletes": [],
+  "weeklyStats": {
+    "weekStart": "2026-04-17T00:00:00.000Z",
+    "tickets": 0,
+    "payments": 0,
+    "revenue": 0,
+    "history": []
+  }
+}
