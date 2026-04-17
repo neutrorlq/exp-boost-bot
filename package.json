@@ -1,0 +1,16 @@
+{
+  "name": "discord-bot",
+  "version": "3.0.0",
+  "description": "Bot Discord com tickets, webhook e pagamento PIX",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy": "node src/deploy-commands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "axios": "^1.7.9"
+  }
+}

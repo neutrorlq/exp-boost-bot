@@ -1,0 +1,70 @@
+{
+  "configs": {
+    "1493705228682530891": {
+      "TICKET_CATEGORY_ID": "1493724075661721716",
+      "SUPPORT_ROLE_ID": "1493706683048788150",
+      "TICKET_LOG_CHANNEL_ID": "1494247524578361344"
+    }
+  },
+  "ticketCounter": {
+    "1493705228682530891": 9
+  },
+  "charges": [
+    {
+      "transactionId": "discord-1494259236392276008-1776329577067",
+      "valor": 25,
+      "canal": "ticket-0001",
+      "geradoPor": "semchanceproerro",
+      "status": "PENDENTE",
+      "criadoEm": "2026-04-16T08:52:58.261Z"
+    },
+    {
+      "transactionId": "discord-1494325243639103618-1776345309523",
+      "valor": 25,
+      "canal": "ticket-0005",
+      "geradoPor": "semchanceproerro",
+      "status": "PENDENTE",
+      "criadoEm": "2026-04-16T13:15:11.824Z"
+    },
+    {
+      "transactionId": "discord-1494345797184262234-1776350218016",
+      "valor": 25,
+      "canal": "ticket-0006",
+      "geradoPor": "semchanceproerro",
+      "status": "PENDENTE",
+      "criadoEm": "2026-04-16T14:36:59.989Z"
+    },
+    {
+      "transactionId": "discord-1494450967553507401-1776375703751",
+      "valor": 33,
+      "canal": "ticket-0007",
+      "geradoPor": "semchanceproerro",
+      "status": "PENDENTE",
+      "criadoEm": "2026-04-16T21:41:45.486Z"
+    },
+    {
+      "transactionId": "discord-1494456687791444198-1776376657171",
+      "valor": 25,
+      "canal": "ticket-0008-assumido",
+      "geradoPor": "semchanceproerro",
+      "status": "PENDENTE",
+      "criadoEm": "2026-04-16T21:57:40.511Z"
+    },
+    {
+      "transactionId": "discord-1494488850687463445-1776384316863",
+      "valor": 25,
+      "canal": "ticket-0009",
+      "geradoPor": "semchanceproerro",
+      "status": "PENDENTE",
+      "criadoEm": "2026-04-17T00:05:18.648Z"
+    }
+  ],
+  "scheduledDeletes": [],
+  "weeklyStats": {
+    "weekStart": "2026-04-16T21:34:35.869Z",
+    "tickets": 3,
+    "payments": 3,
+    "revenue": 83,
+    "history": []
+  }
+}
