@@ -1,78 +1,132 @@
-const fs   = require('fs');
-const path = require('path');
+const fs    = require('fs');
+const path  = require('path');
+const https = require('https');
 
-const DB_PATH = path.join(process.cwd(), 'database.json');
+const DB_PATH   = path.join(process.cwd(), 'database.json');
+const GH_TOKEN  = process.env.GITHUB_TOKEN;
+const GH_REPO   = process.env.GITHUB_REPO || 'neutrorlq/exp-boost-bot';
+const GH_FILE   = 'database.json';
+const GH_BRANCH = 'main';
 
 const INICIAL = {
-  configs: {},
-  ticketCounter: {},
-  charges: [],
-  scheduledDeletes: [],
-  weeklyStats: { weekStart: null, tickets: 0, payments: 0, revenue: 0, history: [] },
+  configs:{}, ticketCounter:{}, charges:[], scheduledDeletes:[],
+  weeklyStats:{ weekStart:null, tickets:0, payments:0, revenue:0, history:[] },
 };
 
-function loadDB() {
+function ghRequest(method, endpoint, body) {
+  return new Promise((resolve, reject) => {
+    const data = body ? JSON.stringify(body) : null;
+    const req = https.request({
+      hostname: 'api.github.com',
+      path: endpoint, method,
+      headers: {
+        'Authorization': `Bearer ${GH_TOKEN}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'exp-boost-bot',
+        'X-GitHub-Api-Version': '2022-11-28',
+        ...(data ? { 'Content-Type':'application/json','Content-Length':Buffer.byteLength(data) } : {}),
+      },
+    }, res => {
+      let raw = '';
+      res.on('data', c => raw += c);
+      res.on('end', () => { try { resolve(JSON.parse(raw)); } catch { resolve({}); } });
+    });
+    req.on('error', reject);
+    if (data) req.write(data);
+    req.end();
+  });
+}
+
+let _dbCache = null;
+let _ghSha   = null;
+let _saveTimeout = null;
+
+async function initDB() {
   try {
-    if (!fs.existsSync(DB_PATH)) {
-      const init = JSON.parse(JSON.stringify(INICIAL));
-      init.weeklyStats.weekStart = new Date().toISOString();
-      fs.writeFileSync(DB_PATH, JSON.stringify(init, null, 2));
-      return init;
+    if (GH_TOKEN) {
+      const res = await ghRequest('GET', `/repos/${GH_REPO}/contents/${GH_FILE}?ref=${GH_BRANCH}`);
+      if (res.content) {
+        const data = JSON.parse(Buffer.from(res.content, 'base64').toString('utf-8'));
+        _ghSha   = res.sha;
+        _dbCache = data;
+        fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+        console.log('[DB] Carregado do GitHub');
+        return;
+      }
     }
-    const data = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
-    if (!data.configs)           data.configs = {};
-    if (!data.ticketCounter)     data.ticketCounter = {};
-    if (!Array.isArray(data.charges))         data.charges = [];
-    if (!Array.isArray(data.scheduledDeletes)) data.scheduledDeletes = [];
-    if (!data.weeklyStats || typeof data.weeklyStats !== 'object') {
-      data.weeklyStats = { weekStart: new Date().toISOString(), tickets: 0, payments: 0, revenue: 0, history: [] };
-    }
-    if (!data.weeklyStats.weekStart) data.weeklyStats.weekStart = new Date().toISOString();
-    if (!Array.isArray(data.weeklyStats.history)) data.weeklyStats.history = [];
-    if (typeof data.weeklyStats.tickets  !== 'number') data.weeklyStats.tickets  = 0;
-    if (typeof data.weeklyStats.payments !== 'number') data.weeklyStats.payments = 0;
-    if (typeof data.weeklyStats.revenue  !== 'number') data.weeklyStats.revenue  = 0;
-    return data;
-  } catch (e) {
-    console.error('[DB] Erro ao carregar:', e.message);
-    const fb = JSON.parse(JSON.stringify(INICIAL));
-    fb.weeklyStats.weekStart = new Date().toISOString();
-    return fb;
+  } catch(e) { console.error('[DB] GitHub load error:', e.message); }
+
+  if (fs.existsSync(DB_PATH)) {
+    _dbCache = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+    console.log('[DB] Carregado do arquivo local');
+  } else {
+    _dbCache = JSON.parse(JSON.stringify(INICIAL));
+    _dbCache.weeklyStats.weekStart = new Date().toISOString();
+    console.log('[DB] Iniciado do zero');
   }
+  _normalize(_dbCache);
+}
+
+function _normalize(d) {
+  if (!d.configs)           d.configs = {};
+  if (!d.ticketCounter)     d.ticketCounter = {};
+  if (!Array.isArray(d.charges))          d.charges = [];
+  if (!Array.isArray(d.scheduledDeletes)) d.scheduledDeletes = [];
+  if (!d.weeklyStats || typeof d.weeklyStats !== 'object')
+    d.weeklyStats = { weekStart: new Date().toISOString(), tickets:0, payments:0, revenue:0, history:[] };
+  if (!d.weeklyStats.weekStart) d.weeklyStats.weekStart = new Date().toISOString();
+  if (!Array.isArray(d.weeklyStats.history)) d.weeklyStats.history = [];
+  ['tickets','payments','revenue'].forEach(k => { if (typeof d.weeklyStats[k] !== 'number') d.weeklyStats[k] = 0; });
+}
+
+function loadDB() {
+  if (!_dbCache) {
+    if (fs.existsSync(DB_PATH)) {
+      _dbCache = JSON.parse(fs.readFileSync(DB_PATH, 'utf-8'));
+    } else {
+      _dbCache = JSON.parse(JSON.stringify(INICIAL));
+      _dbCache.weeklyStats.weekStart = new Date().toISOString();
+    }
+    _normalize(_dbCache);
+  }
+  return _dbCache;
 }
 
 function saveDB(data) {
-  try {
-    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-  } catch (e) {
-    console.error('[DB] Erro ao salvar:', e.message);
-  }
+  _dbCache = data;
+  try { fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2)); } catch {}
+  if (!GH_TOKEN) return;
+  if (_saveTimeout) clearTimeout(_saveTimeout);
+  _saveTimeout = setTimeout(async () => {
+    try {
+      if (!_ghSha) {
+        const r = await ghRequest('GET', `/repos/${GH_REPO}/contents/${GH_FILE}?ref=${GH_BRANCH}`);
+        _ghSha = r.sha;
+      }
+      const content = Buffer.from(JSON.stringify(data, null, 2)).toString('base64');
+      const r = await ghRequest('PUT', `/repos/${GH_REPO}/contents/${GH_FILE}`, {
+        message: 'db: auto-sync', content, sha: _ghSha, branch: GH_BRANCH,
+      });
+      if (r.content?.sha) _ghSha = r.content.sha;
+      console.log('[DB] Sincronizado com GitHub');
+    } catch(e) {
+      console.error('[DB] GitHub save error:', e.message);
+      _ghSha = null;
+    }
+  }, 3000);
 }
 
 function checkWeeklyReset(db) {
-  const weekStart = new Date(db.weeklyStats.weekStart);
-  const diffDays  = (Date.now() - weekStart) / (1000 * 60 * 60 * 24);
+  const diffDays = (Date.now() - new Date(db.weeklyStats.weekStart)) / (1000*60*60*24);
   if (diffDays >= 7) {
-    db.weeklyStats.history.unshift({
-      weekStart: db.weeklyStats.weekStart,
-      weekEnd:   new Date().toISOString(),
-      tickets:   db.weeklyStats.tickets,
-      payments:  db.weeklyStats.payments,
-      revenue:   db.weeklyStats.revenue,
-    });
-    if (db.weeklyStats.history.length > 12) db.weeklyStats.history = db.weeklyStats.history.slice(0, 12);
-    db.weeklyStats.weekStart = new Date().toISOString();
-    db.weeklyStats.tickets   = 0;
-    db.weeklyStats.payments  = 0;
-    db.weeklyStats.revenue   = 0;
+    db.weeklyStats.history.unshift({ weekStart:db.weeklyStats.weekStart, weekEnd:new Date().toISOString(), tickets:db.weeklyStats.tickets, payments:db.weeklyStats.payments, revenue:db.weeklyStats.revenue });
+    if (db.weeklyStats.history.length > 12) db.weeklyStats.history = db.weeklyStats.history.slice(0,12);
+    Object.assign(db.weeklyStats, { weekStart:new Date().toISOString(), tickets:0, payments:0, revenue:0 });
     saveDB(db);
   }
 }
 
-function getConfig(guildId) {
-  return loadDB().configs[guildId] || {};
-}
-
+function getConfig(guildId) { return loadDB().configs[guildId] || {}; }
 function setConfig(guildId, key, value) {
   const db = loadDB();
   if (!db.configs[guildId]) db.configs[guildId] = {};
@@ -96,26 +150,19 @@ function salvarCobranca(dados) {
   if (!Array.isArray(db.charges)) db.charges = [];
   db.charges.push({ ...dados, criadoEm: new Date().toISOString() });
   db.weeklyStats.payments++;
-  // Só soma no revenue se já for PAGO na criação
-  if (dados.status && dados.status !== 'PENDENTE') {
-    db.weeklyStats.revenue += parseFloat(dados.valor) || 0;
-  }
   saveDB(db);
 }
 
 function confirmarPagamento(canalNome, confirmadoPor) {
   const db = loadDB();
-  const cobranca = [...(db.charges||[])].reverse().find(c => c.canal === canalNome && c.status === 'PENDENTE');
-  if (cobranca) {
-    cobranca.status       = 'PAGO';
-    cobranca.confirmadoPor = confirmadoPor;
-    cobranca.confirmadoEm  = new Date().toISOString();
-    // Adiciona ao revenue semanal
-    if (db.weeklyStats) {
-      db.weeklyStats.revenue = (db.weeklyStats.revenue || 0) + (parseFloat(cobranca.valor) || 0);
-    }
+  const c = [...(db.charges||[])].reverse().find(c => c.canal === canalNome && c.status === 'PENDENTE');
+  if (c) {
+    c.status = 'PAGO';
+    c.confirmadoPor = confirmadoPor;
+    c.confirmadoEm  = new Date().toISOString();
+    db.weeklyStats.revenue = (db.weeklyStats.revenue||0) + (parseFloat(c.valor)||0);
     saveDB(db);
-    return cobranca;
+    return c;
   }
   return null;
 }
@@ -129,7 +176,7 @@ function salvarAgendamento(dados) {
 
 function removerAgendamento(messageId) {
   const db = loadDB();
-  db.scheduledDeletes = (db.scheduledDeletes || []).filter(a => a.messageId !== messageId);
+  db.scheduledDeletes = (db.scheduledDeletes||[]).filter(a => a.messageId !== messageId);
   saveDB(db);
 }
 
@@ -140,10 +187,10 @@ function listarAgendamentos() {
 }
 
 module.exports = {
+  initDB, loadDB, saveDB,
   getConfig, setConfig,
   proximoNumeroTicket,
   salvarCobranca, confirmarPagamento,
   salvarAgendamento, removerAgendamento, listarAgendamentos,
   checkWeeklyReset,
-  loadDB, saveDB,
 };

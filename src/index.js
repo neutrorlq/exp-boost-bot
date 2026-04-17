@@ -47,5 +47,8 @@ process.on('uncaughtException', error => {
 });
 
 // ─── INICIAR WEBHOOK + LOGIN ───────────────────────────────────────────────────
-startWebhookServer(client);
-client.login(process.env.DISCORD_TOKEN);
+const { initDB } = require('./utils/database');
+initDB().then(() => {
+  startWebhookServer(client);
+  client.login(process.env.DISCORD_TOKEN);
+});
