@@ -7,7 +7,7 @@
     }
   },
   "ticketCounter": {
-    "1493705228682530891": 3
+    "1493705228682530891": 4
   },
   "charges": [
     {
@@ -42,7 +42,7 @@
   "scheduledDeletes": [],
   "weeklyStats": {
     "weekStart": "2026-04-17T00:00:00.000Z",
-    "tickets": 3,
+    "tickets": 4,
     "payments": 3,
     "revenue": 33,
     "history": []
