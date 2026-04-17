@@ -27,14 +27,24 @@
       "criadoEm": "2026-04-17T23:33:48.012Z",
       "confirmadoPor": "semchanceproerro",
       "confirmadoEm": "2026-04-17T23:33:49.269Z"
+    },
+    {
+      "transactionId": "discord-1494843641238388936-1776468911418",
+      "valor": 11,
+      "canal": "ticket-0003-assumido",
+      "geradoPor": "semchanceproerro",
+      "status": "PAGO",
+      "criadoEm": "2026-04-17T23:35:12.720Z",
+      "confirmadoPor": "semchanceproerro",
+      "confirmadoEm": "2026-04-17T23:35:15.442Z"
     }
   ],
   "scheduledDeletes": [],
   "weeklyStats": {
     "weekStart": "2026-04-17T00:00:00.000Z",
     "tickets": 3,
-    "payments": 2,
-    "revenue": 22,
+    "payments": 3,
+    "revenue": 33,
     "history": []
   }
 }
