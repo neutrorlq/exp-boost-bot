@@ -87,8 +87,8 @@ module.exports = {
 
       // ── Gerar PIX ──────────────────────────────────────────────────────────
       if (interaction.customId === 'gerar_pix') {
-        if (!interaction.member.permissions.has(PermissionFlagsBits.ManageChannels)) {
-          return interaction.reply({ content: '❌ Apenas moderadores podem gerar cobranças PIX.', ephemeral: true });
+        if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+          return interaction.reply({ content: '❌ Apenas administradores podem gerar cobranças PIX.', ephemeral: true });
         }
 
         const modal = new ModalBuilder().setCustomId('modal_pix').setTitle('💳 Gerar Cobrança PIX');
