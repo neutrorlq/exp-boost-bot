@@ -46,6 +46,7 @@ async function initDB() {
   try {
     if (GH_TOKEN) {
       const res = await ghRequest('GET', `/repos/${GH_REPO}/contents/${GH_FILE}?ref=${GH_BRANCH}`);
+      console.log('[DB] GitHub msg:', res.message || 'ok', '| content:', !!res.content);
       if (res.content) {
         const data = JSON.parse(Buffer.from(res.content, 'base64').toString('utf-8'));
         _ghSha   = res.sha;
