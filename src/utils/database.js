@@ -160,5 +160,5 @@ module.exports = {
   salvarCobranca,
   salvarAgendamento, removerAgendamento, listarAgendamentos,
   checkWeeklyReset,
-  loadDB,
+  loadDB, saveDB,
 };
