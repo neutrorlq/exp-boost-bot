@@ -9,12 +9,21 @@
   "ticketCounter": {
     "1493705228682530891": 1
   },
-  "charges": [],
+  "charges": [
+    {
+      "transactionId": "discord-1494842862431375541-1776468730247",
+      "valor": 22,
+      "canal": "ticket-0001-assumido",
+      "geradoPor": "semchanceproerro",
+      "status": "PENDENTE",
+      "criadoEm": "2026-04-17T23:32:12.002Z"
+    }
+  ],
   "scheduledDeletes": [],
   "weeklyStats": {
     "weekStart": "2026-04-17T00:00:00.000Z",
     "tickets": 1,
-    "payments": 0,
+    "payments": 1,
     "revenue": 0,
     "history": []
   }
