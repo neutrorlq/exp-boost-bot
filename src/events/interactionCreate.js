@@ -397,6 +397,58 @@ module.exports = {
           await interaction.editReply({ content: '❌ Erro ao criar o ticket. Verifique as permissões do bot na categoria.' });
         }
       }
+
+      // ── Say Mensagem ───────────────────────────────────────────────────────
+      if (interaction.customId === 'modal_say_mensagem') {
+        const texto = interaction.fields.getTextInputValue('texto');
+        try {
+          await interaction.channel.send(texto);
+          await interaction.reply({ content: '✅ Mensagem enviada!', ephemeral: true });
+        } catch (e) {
+          await interaction.reply({ content: `❌ Erro: ${e.message}`, ephemeral: true });
+        }
+      }
+
+      // ── Say Webhook ────────────────────────────────────────────────────────
+      if (interaction.customId.startsWith('modal_say_webhook_')) {
+        const canalId = interaction.customId.replace('modal_say_webhook_', '');
+        const texto   = interaction.fields.getTextInputValue('texto');
+        const nome    = interaction.fields.getTextInputValue('nome') || interaction.client.user.username;
+        const avatar  = interaction.fields.getTextInputValue('avatar');
+
+        // Validar avatar
+        if (avatar && !avatar.startsWith('http://') && !avatar.startsWith('https://')) {
+          return interaction.reply({ content: '❌ URL do avatar inválida! Precisa começar com `https://`', ephemeral: true });
+        }
+
+        await interaction.deferReply({ ephemeral: true });
+
+        try {
+          const { WebhookClient } = require('discord.js');
+          const canal = await interaction.client.channels.fetch(canalId);
+          const webhooks = await canal.fetchWebhooks();
+          let webhook = webhooks.find(w => w.owner?.id === interaction.client.user.id);
+          if (!webhook) {
+            webhook = await canal.createWebhook({
+              name: 'Bot Webhook',
+              avatar: interaction.client.user.displayAvatarURL(),
+            });
+          }
+
+          const wClient = new WebhookClient({ id: webhook.id, token: webhook.token });
+          await wClient.send({
+            content: texto,
+            username: nome,
+            avatarURL: avatar || interaction.client.user.displayAvatarURL(),
+            allowedMentions: { parse: ['users', 'roles'] },
+          });
+
+          await interaction.editReply({ content: `✅ Mensagem enviada via webhook em <#${canalId}>!` });
+        } catch (e) {
+          logger.error(`Erro say webhook: ${e.message}`);
+          await interaction.editReply({ content: `❌ Erro: ${e.message}` });
+        }
+      }
     }
   },
 };
